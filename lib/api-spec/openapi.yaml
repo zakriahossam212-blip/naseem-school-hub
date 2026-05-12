@@ -3,20 +3,29 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: LMS API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: courses
+    description: Course operations
+  - name: assignments
+    description: Assignment operations
+  - name: submissions
+    description: Submission operations
+  - name: files
+    description: File upload operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +33,579 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user profile and roles
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Not authenticated
+
+  /auth/signup:
+    post:
+      operationId: signUp
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignUpInput"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          description: Invalid input or email already exists
+
+  /auth/signin:
+    post:
+      operationId: signIn
+      tags: [auth]
+      summary: Sign in with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignInInput"
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: Invalid credentials
+
+  /auth/signout:
+    post:
+      operationId: signOut
+      tags: [auth]
+      summary: Sign out current user
+      responses:
+        "200":
+          description: Signed out
+
+  /courses:
+    get:
+      operationId: listCourses
+      tags: [courses]
+      summary: List all courses (filtered by role)
+      parameters:
+        - name: teacherId
+          in: query
+          schema:
+            type: string
+          description: Filter by teacher ID
+      responses:
+        "200":
+          description: List of courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Course"
+    post:
+      operationId: createCourse
+      tags: [courses]
+      summary: Create a new course (teacher only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseInput"
+      responses:
+        "201":
+          description: Course created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+
+  /courses/{id}:
+    get:
+      operationId: getCourse
+      tags: [courses]
+      summary: Get a course by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Course
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+        "404":
+          description: Not found
+
+  /courses/{id}/enroll:
+    post:
+      operationId: enrollInCourse
+      tags: [courses]
+      summary: Enroll student in a course
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnrollInput"
+      responses:
+        "201":
+          description: Enrolled
+        "409":
+          description: Already enrolled
+
+  /enrollments:
+    get:
+      operationId: listEnrollments
+      tags: [courses]
+      summary: List enrolled course IDs for a student
+      parameters:
+        - name: studentId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of enrolled course IDs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /assignments:
+    get:
+      operationId: listAssignments
+      tags: [assignments]
+      summary: List assignments
+      parameters:
+        - name: courseId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Assignment"
+    post:
+      operationId: createAssignment
+      tags: [assignments]
+      summary: Create a new assignment (teacher only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignmentInput"
+      responses:
+        "201":
+          description: Assignment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assignment"
+
+  /assignments/{id}:
+    get:
+      operationId: getAssignment
+      tags: [assignments]
+      summary: Get an assignment by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Assignment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assignment"
+        "404":
+          description: Not found
+
+  /submissions:
+    get:
+      operationId: listSubmissions
+      tags: [submissions]
+      summary: List submissions
+      parameters:
+        - name: assignmentId
+          in: query
+          schema:
+            type: string
+        - name: studentId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Submission"
+    post:
+      operationId: createSubmission
+      tags: [submissions]
+      summary: Submit or update an assignment submission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmissionInput"
+      responses:
+        "201":
+          description: Submission created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+
+  /submissions/{id}:
+    patch:
+      operationId: updateSubmission
+      tags: [submissions]
+      summary: Update a submission (grade or content)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmissionUpdate"
+      responses:
+        "200":
+          description: Updated submission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+
+  /profiles/{userId}:
+    get:
+      operationId: getProfile
+      tags: [auth]
+      summary: Get a user profile by userId
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "404":
+          description: Not found
+
+  /profiles:
+    get:
+      operationId: listProfiles
+      tags: [auth]
+      summary: List profiles by user IDs
+      parameters:
+        - name: userIds
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Comma-separated user IDs
+      responses:
+        "200":
+          description: List of profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Profile"
+
+  /files/upload:
+    post:
+      operationId: uploadFile
+      tags: [files]
+      summary: Upload a file (multipart form data)
+      responses:
+        "200":
+          description: Uploaded file URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileUploadResult"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    UserProfile:
+      type: object
+      required: [userId, roles]
+      properties:
+        userId:
+          type: string
+        fullName:
+          type: ["string", "null"]
+        roles:
+          type: array
+          items:
+            type: string
+
+    Profile:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+        fullName:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+
+    AuthSession:
+      type: object
+      required: [userId, token]
+      properties:
+        userId:
+          type: string
+        token:
+          type: string
+        fullName:
+          type: ["string", "null"]
+        roles:
+          type: array
+          items:
+            type: string
+
+    SignUpInput:
+      type: object
+      required: [email, password, fullName]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        fullName:
+          type: string
+          minLength: 2
+        role:
+          type: string
+          enum: [student, teacher]
+          default: student
+
+    SignInInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    Course:
+      type: object
+      required: [id, title, teacherId, createdAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        teacherId:
+          type: string
+        createdAt:
+          type: string
+
+    CourseInput:
+      type: object
+      required: [title, teacherId]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        teacherId:
+          type: string
+
+    EnrollInput:
+      type: object
+      required: [studentId]
+      properties:
+        studentId:
+          type: string
+
+    Enrollment:
+      type: object
+      required: [courseId, studentId]
+      properties:
+        courseId:
+          type: string
+        studentId:
+          type: string
+
+    Assignment:
+      type: object
+      required: [id, courseId, title, maxGrade, createdBy, createdAt]
+      properties:
+        id:
+          type: string
+        courseId:
+          type: string
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        dueDate:
+          type: ["string", "null"]
+        maxGrade:
+          type: integer
+        attachmentUrl:
+          type: ["string", "null"]
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+
+    AssignmentInput:
+      type: object
+      required: [courseId, title, createdBy]
+      properties:
+        courseId:
+          type: string
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        dueDate:
+          type: string
+        maxGrade:
+          type: integer
+          default: 100
+        attachmentUrl:
+          type: string
+        createdBy:
+          type: string
+
+    Submission:
+      type: object
+      required: [id, assignmentId, studentId, status, submittedAt]
+      properties:
+        id:
+          type: string
+        assignmentId:
+          type: string
+        studentId:
+          type: string
+        content:
+          type: ["string", "null"]
+        fileUrl:
+          type: ["string", "null"]
+        grade:
+          type: ["integer", "null"]
+        feedback:
+          type: ["string", "null"]
+        status:
+          type: string
+        gradedBy:
+          type: ["string", "null"]
+        gradedAt:
+          type: ["string", "null"]
+        submittedAt:
+          type: string
+
+    SubmissionInput:
+      type: object
+      required: [assignmentId, studentId]
+      properties:
+        assignmentId:
+          type: string
+        studentId:
+          type: string
+        content:
+          type: string
+        fileUrl:
+          type: string
+        status:
+          type: string
+
+    SubmissionUpdate:
+      type: object
+      properties:
+        content:
+          type: string
+        fileUrl:
+          type: string
+        grade:
+          type: integer
+        feedback:
+          type: string
+        status:
+          type: string
+        gradedBy:
+          type: string
+
+    FileUploadResult:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
