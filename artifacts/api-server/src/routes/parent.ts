@@ -10,14 +10,46 @@ import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
-// Link parent to student
+/** Verify caller has the given role in the DB */
+async function hasRole(userId: string, role: string): Promise<boolean> {
+  const rows = await db.select().from(userRolesTable)
+    .where(and(eq(userRolesTable.userId, userId), eq(userRolesTable.role, role as "admin" | "teacher" | "student" | "parent")));
+  return rows.length > 0;
+}
+
+/**
+ * POST /parent/link
+ * Link a parent account to a student account.
+ * Requires: caller has "parent" role; target user exists and has "student" role.
+ */
 router.post("/parent/link", requireAuth, async (req, res): Promise<void> => {
   const { studentId } = req.body as { studentId?: string };
   if (!studentId) { res.status(400).json({ error: "studentId required" }); return; }
+
   const parentId = req.authUserId;
+
+  // Caller must have parent role
+  if (!(await hasRole(parentId, "parent"))) {
+    res.status(403).json({ error: "Only users with the parent role may link to students" });
+    return;
+  }
+
+  // Target must exist and have student role
+  if (!(await hasRole(studentId, "student"))) {
+    res.status(400).json({ error: "The specified user is not a registered student" });
+    return;
+  }
+
+  // Prevent self-linking
+  if (parentId === studentId) {
+    res.status(400).json({ error: "Cannot link to yourself" });
+    return;
+  }
+
   const existing = await db.select().from(parentStudentLinksTable)
     .where(and(eq(parentStudentLinksTable.parentId, parentId), eq(parentStudentLinksTable.studentId, studentId)));
   if (existing.length > 0) { res.status(409).json({ error: "Already linked" }); return; }
+
   const [link] = await db.insert(parentStudentLinksTable).values({ parentId, studentId }).returning();
   res.status(201).json({ id: link.id, parentId: link.parentId, studentId: link.studentId });
 });
@@ -32,7 +64,7 @@ router.get("/parent/students", requireAuth, async (req, res): Promise<void> => {
   res.json(profiles.map((p) => ({ userId: p.userId, fullName: p.fullName, avatarUrl: p.avatarUrl })));
 });
 
-// Get student grades/submissions (parent view)
+// Get student grades/submissions (parent view) — link enforced
 router.get("/parent/students/:studentId/grades", requireAuth, async (req, res): Promise<void> => {
   const { studentId } = req.params;
   const links = await db.select().from(parentStudentLinksTable)
@@ -41,21 +73,21 @@ router.get("/parent/students/:studentId/grades", requireAuth, async (req, res): 
   const subs = await db.select().from(submissionsTable)
     .where(eq(submissionsTable.studentId, studentId)).orderBy(desc(submissionsTable.submittedAt));
   const aIds = [...new Set(subs.map((s) => s.assignmentId))];
-  let aMap: Record<string, { title: string; maxGrade: number; courseId: string }> = {};
+  const aMap: Record<string, { title: string; maxGrade: number; courseId: string; courseTitle?: string }> = {};
   if (aIds.length) {
     const assignments = await db.select().from(assignmentsTable).where(inArray(assignmentsTable.id, aIds));
     assignments.forEach((a) => { aMap[a.id] = { title: a.title, maxGrade: a.maxGrade, courseId: a.courseId }; });
     const cIds = [...new Set(assignments.map((a) => a.courseId))];
     const courses = cIds.length ? await db.select().from(coursesTable).where(inArray(coursesTable.id, cIds)) : [];
-    let cMap: Record<string, string> = {};
+    const cMap: Record<string, string> = {};
     courses.forEach((c) => { cMap[c.id] = c.title; });
-    Object.values(aMap).forEach((a) => { (a as Record<string, unknown>).courseTitle = cMap[a.courseId] ?? ""; });
+    Object.values(aMap).forEach((a) => { a.courseTitle = cMap[a.courseId] ?? ""; });
   }
   res.json(subs.map((s) => ({
     id: s.id,
     assignmentId: s.assignmentId,
     assignmentTitle: aMap[s.assignmentId]?.title ?? "",
-    courseTitle: (aMap[s.assignmentId] as Record<string, unknown> | undefined)?.courseTitle ?? "",
+    courseTitle: aMap[s.assignmentId]?.courseTitle ?? "",
     grade: s.grade,
     maxGrade: aMap[s.assignmentId]?.maxGrade ?? 100,
     status: s.status,
@@ -64,7 +96,7 @@ router.get("/parent/students/:studentId/grades", requireAuth, async (req, res): 
   })));
 });
 
-// Get student enrollments (parent view)
+// Get student enrollments (parent view) — link enforced
 router.get("/parent/students/:studentId/courses", requireAuth, async (req, res): Promise<void> => {
   const { studentId } = req.params;
   const links = await db.select().from(parentStudentLinksTable)
@@ -100,7 +132,7 @@ router.get("/messages/inbox", requireAuth, async (req, res): Promise<void> => {
   res.json(msgs.map((m) => ({ id: m.id, fromUserId: m.fromUserId, toUserId: m.toUserId, subject: m.subject, body: m.body, isRead: m.isRead, createdAt: m.createdAt.toISOString() })));
 });
 
-// Messages: mark read
+// Messages: mark read (only recipient)
 router.patch("/messages/:id/read", requireAuth, async (req, res): Promise<void> => {
   const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, req.params.id));
   if (!msg) { res.status(404).json({ error: "Not found" }); return; }

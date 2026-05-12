@@ -100,10 +100,11 @@ export const api = {
   },
   files: {
     /**
-     * Two-step GCS presigned upload:
-     * 1. Request a presigned PUT URL from the server (auth required)
-     * 2. Upload the file directly to GCS
-     * Returns { url } — the serving path stored in the DB
+     * Three-step GCS presigned upload:
+     * 1. Request a presigned PUT URL (server; auth required)
+     * 2. Upload file directly to GCS (no server involvement)
+     * 3. Register ownership ACL (server; auth required)
+     * Returns { url } — the objectPath to store in the DB
      */
     upload: async (file: File, token: string): Promise<{ url: string }> => {
       // Step 1: get presigned URL
@@ -111,14 +112,19 @@ export const api = {
         "/files/upload-url",
         { method: "POST", body: JSON.stringify({}), token },
       );
-      // Step 2: upload directly to GCS (no auth header — presigned URL is self-contained)
+      // Step 2: upload directly to GCS
       const gcsRes = await fetch(uploadURL, {
         method: "PUT",
         headers: { "Content-Type": file.type || "application/octet-stream" },
         body: file,
       });
       if (!gcsRes.ok) throw new Error(`GCS upload failed: ${gcsRes.status}`);
-      return { url: objectPath };
+      // Step 3: register ownership ACL on the server
+      const { objectPath: confirmed } = await req<{ objectPath: string }>(
+        "/files/register",
+        { method: "POST", body: JSON.stringify({ objectPath }), token },
+      );
+      return { url: confirmed };
     },
   },
 };
