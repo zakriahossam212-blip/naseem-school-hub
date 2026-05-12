@@ -1,157 +1,187 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLang } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
-
-interface PublicNavbarProps {}
-
-import { useState } from "react";
-import { Menu, X, User, LogOut } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Menu, X, User, LogOut, Globe, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useLocation } from "react-router-dom";
 import logo from "@/assets/logo.png";
-
-const navLinks = [
-  { href: "/", label: "الرئيسية" },
-  { href: "/courses", label: "المقررات" },
-  { href: "/teachers", label: "المعلمون" },
-  { href: "/about", label: "عن المدرسة" },
-];
 
 export function PublicNavbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
-  const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { userId, fullName, signOut, isTeacher, isParent } = useAuth();
+  const { lang, toggle, t } = useLang();
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/");
-  };
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 12);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => { setIsOpen(false); }, [location.pathname]);
+
+  const navLinks = [
+    { href: "/", label: t.home },
+    { href: "/courses", label: t.courses },
+    { href: "/teachers", label: t.teachers },
+    { href: "/about", label: t.about },
+  ];
+
+  const dashboardHref = isTeacher ? "/teacher/courses" : isParent ? "/parent" : "/dashboard";
+
+  const handleSignOut = async () => { await signOut(); navigate("/"); };
 
   return (
-    <header className="sticky top-0 z-50 bg-card border-b border-border shadow-depth-sm">
+    <header
+      className={cn(
+        "sticky top-0 z-50 transition-all duration-300",
+        scrolled
+          ? "bg-card/95 backdrop-blur-md border-b border-border shadow-depth-md"
+          : "bg-card border-b border-transparent",
+      )}
+    >
       <nav className="container">
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-16 items-center justify-between gap-4">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <img src={logo} alt="شعار مدرسة نصر الدين" width={40} height={40} className="h-10 w-10 object-contain" />
-            <span className="text-lg font-bold text-foreground">
-              مدرسة نصر الدين
+          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 group">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-lg bg-primary/20 blur-sm group-hover:blur-md transition-all" />
+              <img
+                src={logo}
+                alt={t.schoolName}
+                width={40} height={40}
+                className="relative h-9 w-9 object-contain rounded-lg"
+              />
+            </div>
+            <span className="text-lg font-bold text-foreground hidden sm:block">
+              {t.schoolName}
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
-            <ul className="flex items-center gap-6">
-              {navLinks.map((link) => (
+          {/* Desktop nav */}
+          <ul className="hidden md:flex items-center gap-1">
+            {navLinks.map((link) => {
+              const active = location.pathname === link.href;
+              return (
                 <li key={link.href}>
                   <Link
                     to={link.href}
                     className={cn(
-                      "text-sm font-medium transition-colors hover:text-primary",
-                      location.pathname === link.href
-                        ? "text-primary"
-                        : "text-muted-foreground"
+                      "relative px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                      active
+                        ? "text-primary bg-primary/8"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent",
                     )}
                   >
                     {link.label}
+                    {active && (
+                      <span className="absolute bottom-0.5 right-1/2 translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+                    )}
                   </Link>
                 </li>
-              ))}
-            </ul>
+              );
+            })}
+          </ul>
 
-            <div className="flex items-center gap-3">
-              {user ? (
-                <>
-                  <Link to="/dashboard">
-                    <Button variant="outline" size="sm">
-                      <User className="h-4 w-4 ml-2" />
-                      لوحة التحكم
-                    </Button>
-                  </Link>
-                  <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                    <LogOut className="h-4 w-4 ml-2" />
-                    خروج
+          {/* Desktop right section */}
+          <div className="hidden md:flex items-center gap-2">
+            {/* Language toggle */}
+            <button
+              onClick={toggle}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              aria-label="تبديل اللغة"
+            >
+              <Globe className="h-3.5 w-3.5" />
+              {lang === "ar" ? "EN" : "ع"}
+            </button>
+
+            {userId ? (
+              <>
+                <Link to={dashboardHref}>
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <User className="h-3.5 w-3.5" />
+                    {fullName?.split(" ")[0] || t.dashboard}
                   </Button>
-                </>
-              ) : (
-                <>
-                  <Link to="/auth">
-                    <Button variant="outline" size="sm">
-                      تسجيل الدخول
-                    </Button>
-                  </Link>
-                  <Link to="/auth">
-                    <Button size="sm">
-                      إنشاء حساب
-                    </Button>
-                  </Link>
-                </>
-              )}
-            </div>
+                </Link>
+                <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-1.5 text-muted-foreground">
+                  <LogOut className="h-3.5 w-3.5" />
+                  {t.signOut}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link to="/auth">
+                  <Button variant="outline" size="sm">{t.signIn}</Button>
+                </Link>
+                <Link to="/auth">
+                  <Button size="sm" className="gap-1.5">
+                    <GraduationCap className="h-3.5 w-3.5" />
+                    {t.signUp}
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden p-2 rounded-md hover:bg-accent"
-            aria-label="القائمة"
-          >
-            {isOpen ? (
-              <X className="h-6 w-6 text-foreground" />
-            ) : (
-              <Menu className="h-6 w-6 text-foreground" />
-            )}
-          </button>
+          {/* Mobile row */}
+          <div className="flex md:hidden items-center gap-2">
+            <button
+              onClick={toggle}
+              className="p-1.5 rounded-lg border border-border text-xs font-bold text-muted-foreground hover:bg-accent"
+            >
+              {lang === "ar" ? "EN" : "ع"}
+            </button>
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="p-2 rounded-lg hover:bg-accent transition-colors"
+              aria-label="القائمة"
+            >
+              {isOpen
+                ? <X className="h-5 w-5 text-foreground" />
+                : <Menu className="h-5 w-5 text-foreground" />}
+            </button>
+          </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile menu */}
         {isOpen && (
-          <div className="md:hidden border-t border-border py-4 animate-fade-in">
-            <ul className="flex flex-col gap-2">
-              {navLinks.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    to={link.href}
-                    onClick={() => setIsOpen(false)}
-                    className={cn(
-                      "block px-4 py-2 rounded-md text-sm font-medium transition-colors",
-                      location.pathname === link.href
-                        ? "bg-accent text-primary"
-                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                    )}
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            <div className="flex flex-col gap-2 mt-4 px-4">
-              {user ? (
+          <div className="md:hidden border-t border-border py-4 animate-fade-in space-y-1">
+            {navLinks.map((link) => {
+              const active = location.pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className={cn(
+                    "flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-colors",
+                    active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  )}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+            <div className="pt-3 border-t border-border mt-3 space-y-2 px-1">
+              {userId ? (
                 <>
-                  <Link to="/dashboard" onClick={() => setIsOpen(false)}>
-                    <Button variant="outline" className="w-full">
-                      <User className="h-4 w-4 ml-2" />
-                      لوحة التحكم
+                  <Link to={dashboardHref}>
+                    <Button variant="outline" className="w-full gap-2">
+                      <User className="h-4 w-4" />
+                      {t.dashboard}
                     </Button>
                   </Link>
-                  <Button className="w-full" onClick={handleSignOut}>
-                    <LogOut className="h-4 w-4 ml-2" />
-                    تسجيل الخروج
+                  <Button variant="ghost" className="w-full gap-2 text-muted-foreground" onClick={handleSignOut}>
+                    <LogOut className="h-4 w-4" />
+                    {t.signOut}
                   </Button>
                 </>
               ) : (
                 <>
-                  <Link to="/auth" onClick={() => setIsOpen(false)}>
-                    <Button variant="outline" className="w-full">
-                      تسجيل الدخول
-                    </Button>
-                  </Link>
-                  <Link to="/auth" onClick={() => setIsOpen(false)}>
-                    <Button className="w-full">
-                      إنشاء حساب
-                    </Button>
-                  </Link>
+                  <Link to="/auth"><Button variant="outline" className="w-full">{t.signIn}</Button></Link>
+                  <Link to="/auth"><Button className="w-full">{t.signUp}</Button></Link>
                 </>
               )}
             </div>

@@ -1,247 +1,252 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ChevronLeft, Download, Upload, Save } from "lucide-react";
+import { ChevronLeft, Download, Upload, Save, CheckCircle, Clock } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { AppCard, AppCardTitle } from "@/components/common/AppCard";
-import { Badge } from "@/components/ui/badge";
-import { api } from "@/lib/apiClient";
+import { api, AssignmentDto, CourseDto, SubmissionDto } from "@/lib/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUserRole } from "@/hooks/useUserRole";
-import { toast } from "@/hooks/use-toast";
+import { useAuth as useClerkAuth } from "@clerk/react";
+import { useLang } from "@/contexts/LanguageContext";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
-interface Assignment {
-  id: string; courseId: string; title: string; description: string | null;
-  dueDate: string | null; maxGrade: number; attachmentUrl: string | null;
-}
-interface Course { id: string; title: string; teacherId: string; }
-interface Submission {
-  id: string; assignmentId: string; studentId: string; content: string | null;
-  fileUrl: string | null; grade: number | null; feedback: string | null;
-  status: string; submittedAt: string; gradedAt: string | null;
-}
-interface SubmissionRow extends Submission { studentName?: string | null; }
+interface SubmissionRow extends SubmissionDto { studentName?: string | null; }
 
 export default function AssignmentDetail() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
-  const { isTeacher, isStudent } = useUserRole();
-  const [assignment, setAssignment] = useState<Assignment | null>(null);
-  const [course, setCourse] = useState<Course | null>(null);
-  const [mySubmission, setMySubmission] = useState<Submission | null>(null);
+  const { userId, isTeacher, isStudent } = useAuth();
+  const { getToken } = useClerkAuth();
+  const { t, lang } = useLang();
+  const { toast } = useToast();
+  const [assignment, setAssignment] = useState<AssignmentDto | null>(null);
+  const [course, setCourse] = useState<CourseDto | null>(null);
+  const [mySubmission, setMySubmission] = useState<SubmissionDto | null>(null);
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
   const [content, setContent] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const isCourseTeacher = isTeacher && course?.teacherId === user?.id;
+  const isCourseTeacher = isTeacher && course?.teacherId === userId;
 
   const load = async () => {
-    if (!id || !user) return;
+    if (!id || !userId) return;
+    const token = await getToken().catch(() => null);
+    if (!token) return;
     const a = await api.assignments.get(id).catch(() => null);
     if (!a) return;
-    setAssignment({ ...a, courseId: a.courseId, dueDate: a.dueDate, maxGrade: a.maxGrade, attachmentUrl: a.attachmentUrl });
+    setAssignment(a);
     const c = await api.courses.get(a.courseId).catch(() => null);
-    if (c) setCourse({ id: c.id, title: c.title, teacherId: c.teacherId });
+    if (c) setCourse(c);
 
     if (isStudent) {
-      const subs = await api.submissions.list({ assignmentId: id, studentId: user.id });
+      const subs = await api.submissions.list({ assignmentId: id }, token).catch(() => []);
       const s = subs[0] ?? null;
       setMySubmission(s);
       if (s) setContent(s.content || "");
     }
     if (isTeacher) {
-      const subs = await api.submissions.list({ assignmentId: id });
+      const subs = await api.submissions.list({ assignmentId: id }, token).catch(() => []);
       const ids = Array.from(new Set(subs.map((r) => r.studentId)));
-      let names: Record<string, string> = {};
+      const names: Record<string, string> = {};
       if (ids.length) {
         const profs = await api.profiles.list(ids).catch(() => []);
-        profs.forEach((p) => { names[p.userId] = p.fullName || "طالب"; });
+        profs.forEach((p) => { names[p.userId] = p.fullName || (lang === "ar" ? "طالب" : "Student"); });
       }
-      setSubmissions(subs.map((r) => ({ ...r, studentName: names[r.studentId] || "طالب" })));
+      setSubmissions(subs.map((r) => ({ ...r, studentName: names[r.studentId] })));
     }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [id, user, isTeacher, isStudent]);
-
-  const downloadFile = async (fileUrl: string) => {
-    const url = fileUrl.startsWith("/api/") ? fileUrl : api.files.getUrl(fileUrl);
-    window.open(url, "_blank");
-  };
+  useEffect(() => { load(); }, [id, userId, isTeacher, isStudent]);
 
   const submit = async () => {
-    if (!user || !id) return;
+    if (!userId || !id) return;
+    const token = await getToken().catch(() => null);
+    if (!token) return;
     setSaving(true);
     let fileUrl = mySubmission?.fileUrl ?? null;
     if (file) {
       try {
-        const result = await api.files.upload(file);
+        const result = await api.files.upload(file, token);
         fileUrl = result.url;
       } catch {
         setSaving(false);
-        toast({ title: "تعذر رفع الملف", variant: "destructive" });
+        toast({ title: lang === "ar" ? "تعذر رفع الملف" : "Upload failed", variant: "destructive" });
         return;
       }
     }
     try {
       if (mySubmission) {
-        await api.submissions.update(mySubmission.id, { content: content || undefined, fileUrl: fileUrl || undefined, status: "submitted" });
+        await api.submissions.grade(mySubmission.id, { grade: mySubmission.grade ?? 0 }, token);
       } else {
-        const newSub = await api.submissions.create({ assignmentId: id, studentId: user.id, content: content || undefined, fileUrl: fileUrl || undefined, status: "submitted" });
+        const newSub = await api.submissions.create({ assignmentId: id, content: content || undefined, fileUrl: fileUrl || undefined }, token);
         setMySubmission(newSub);
       }
       setSaving(false);
       setFile(null);
-      toast({ title: "تم تسليم الواجب" });
+      toast({ title: lang === "ar" ? "تم تسليم الواجب" : "Assignment submitted!" });
       load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSaving(false);
-      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+      toast({ title: lang === "ar" ? "خطأ" : "Error", description: (err as Error).message, variant: "destructive" });
     }
   };
 
   if (!assignment) {
-    return <DashboardLayout><p className="text-muted-foreground">جاري التحميل...</p></DashboardLayout>;
+    return (
+      <DashboardLayout>
+        <div className="py-16 text-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" /></div>
+      </DashboardLayout>
+    );
   }
 
   return (
     <DashboardLayout>
-      <Link to={course ? `/dashboard/courses/${course.id}` : "/dashboard/assignments"} className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-3">
-        <ChevronLeft className="h-4 w-4 rotate-180" /> رجوع
-      </Link>
-      <h1 className="text-2xl md:text-3xl font-bold mb-2">{assignment.title}</h1>
-      <p className="text-muted-foreground mb-6">{course?.title}</p>
+      <div className="space-y-6 max-w-3xl">
+        {/* Back */}
+        <Link to={course ? `/dashboard/courses/${course.id}` : "/dashboard/assignments"} className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+          <ChevronLeft className="h-4 w-4" />
+          {lang === "ar" ? "رجوع" : "Back"}
+        </Link>
 
-      <AppCard className="mb-6">
-        <AppCardTitle>تفاصيل الواجب</AppCardTitle>
-        <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">{assignment.description || "لا يوجد وصف"}</p>
-        <div className="mt-3 flex flex-wrap gap-3 text-sm">
-          {assignment.dueDate && <Badge variant="secondary">التسليم: {new Date(assignment.dueDate).toLocaleString("ar-EG")}</Badge>}
-          <Badge variant="secondary">الدرجة الكلية: {assignment.maxGrade}</Badge>
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1">{assignment.title}</h1>
+          {course && <p className="text-muted-foreground">{course.title}</p>}
         </div>
-        {assignment.attachmentUrl && (
-          <Button variant="outline" size="sm" className="mt-4" onClick={() => downloadFile(assignment.attachmentUrl!)}>
-            <Download className="h-4 w-4 ml-1" /> تنزيل المرفق
-          </Button>
-        )}
-      </AppCard>
 
-      {isStudent && (
-        <AppCard className="mb-6">
-          <AppCardTitle>تسليمي</AppCardTitle>
-          {mySubmission?.grade != null ? (
-            <div className="mt-3 p-4 rounded-md border border-primary/30 bg-primary/5">
-              <p className="font-semibold">الدرجة: {mySubmission.grade} / {assignment.maxGrade}</p>
-              {mySubmission.feedback && <p className="text-sm text-muted-foreground mt-2">ملاحظات المعلم: {mySubmission.feedback}</p>}
-            </div>
-          ) : mySubmission ? (
-            <Badge className="mt-2">تم التسليم — في انتظار التصحيح</Badge>
-          ) : null}
+        {/* Assignment card */}
+        <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
+          <h2 className="font-semibold text-foreground">{lang === "ar" ? "تفاصيل الواجب" : "Assignment Details"}</h2>
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+            {assignment.description || (lang === "ar" ? "لا يوجد وصف" : "No description")}
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {assignment.dueDate && (
+              <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-secondary border border-border text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                {lang === "ar" ? "التسليم: " : "Due: "}{new Date(assignment.dueDate).toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary">
+              {lang === "ar" ? `الدرجة الكاملة: ${assignment.maxGrade}` : `Max Grade: ${assignment.maxGrade}`}
+            </span>
+          </div>
+        </div>
 
-          {(mySubmission?.grade == null) && (
-            <div className="space-y-3 mt-4">
-              <div className="space-y-2">
-                <Label>إجابتك</Label>
-                <Textarea value={content} onChange={(e) => setContent(e.target.value)} rows={5} maxLength={5000} />
-              </div>
-              <div className="space-y-2">
-                <Label>إرفاق ملف (اختياري)</Label>
-                <Input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-                {mySubmission?.fileUrl && (
-                  <Button variant="link" size="sm" onClick={() => downloadFile(mySubmission.fileUrl!)} className="px-0">
-                    <Download className="h-3 w-3 ml-1" /> الملف الحالي
-                  </Button>
+        {/* Student submission */}
+        {isStudent && (
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
+            <h2 className="font-semibold">{lang === "ar" ? "تسليمي" : "My Submission"}</h2>
+
+            {mySubmission?.grade != null ? (
+              <div className="p-4 rounded-xl border border-green-200 bg-green-50">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <p className="font-semibold text-green-700">
+                    {lang === "ar" ? `الدرجة: ${mySubmission.grade} / ${assignment.maxGrade}` : `Grade: ${mySubmission.grade} / ${assignment.maxGrade}`}
+                  </p>
+                </div>
+                {mySubmission.feedback && (
+                  <p className="text-sm text-green-700 mt-1">
+                    {lang === "ar" ? "ملاحظات المعلم: " : "Feedback: "}{mySubmission.feedback}
+                  </p>
                 )}
               </div>
-              <Button onClick={submit} disabled={saving}>
-                <Upload className="h-4 w-4 ml-1" /> {mySubmission ? "تحديث التسليم" : "تسليم الواجب"}
-              </Button>
-            </div>
-          )}
-        </AppCard>
-      )}
+            ) : mySubmission ? (
+              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm">
+                <Clock className="h-4 w-4" />
+                {lang === "ar" ? "تم التسليم — في انتظار التصحيح" : "Submitted — awaiting grading"}
+              </div>
+            ) : null}
 
-      {isCourseTeacher && (
-        <AppCard>
-          <AppCardTitle>تسليمات الطلاب ({submissions.length})</AppCardTitle>
-          {submissions.length === 0 ? (
-            <p className="text-muted-foreground mt-3">لا توجد تسليمات بعد</p>
-          ) : (
-            <div className="space-y-3 mt-4">
-              {submissions.map((s) => (
-                <SubmissionGrader
-                  key={s.id}
-                  submission={s}
-                  maxGrade={assignment.maxGrade}
-                  onDownload={downloadFile}
-                  onSaved={load}
-                />
-              ))}
-            </div>
-          )}
-        </AppCard>
-      )}
+            {mySubmission?.grade == null && (
+              <div className="space-y-3">
+                <div>
+                  <Label>{lang === "ar" ? "إجابتك" : "Your Answer"}</Label>
+                  <Textarea value={content} onChange={(e) => setContent(e.target.value)} rows={5} maxLength={5000} className="mt-1" />
+                </div>
+                <div>
+                  <Label>{lang === "ar" ? "إرفاق ملف (اختياري)" : "Attach File (optional)"}</Label>
+                  <Input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="mt-1" />
+                </div>
+                <Button onClick={submit} disabled={saving} className="gap-2">
+                  <Upload className="h-4 w-4" />
+                  {saving ? "..." : (mySubmission ? (lang === "ar" ? "تحديث التسليم" : "Update Submission") : (lang === "ar" ? "تسليم الواجب" : "Submit Assignment"))}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Teacher view */}
+        {isCourseTeacher && (
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-card space-y-4">
+            <h2 className="font-semibold">{lang === "ar" ? `تسليمات الطلاب (${submissions.length})` : `Student Submissions (${submissions.length})`}</h2>
+            {submissions.length === 0 ? (
+              <p className="text-muted-foreground text-sm">{lang === "ar" ? "لا توجد تسليمات بعد" : "No submissions yet"}</p>
+            ) : (
+              <div className="space-y-3">
+                {submissions.map((s) => (
+                  <SubmissionGrader key={s.id} submission={s} maxGrade={assignment.maxGrade} onSaved={load} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 }
 
-function SubmissionGrader({
-  submission, maxGrade, onDownload, onSaved,
-}: {
-  submission: SubmissionRow; maxGrade: number;
-  onDownload: (p: string) => void; onSaved: () => void;
-}) {
-  const { user } = useAuth();
+function SubmissionGrader({ submission, maxGrade, onSaved }: { submission: SubmissionRow; maxGrade: number; onSaved: () => void }) {
+  const { getToken } = useClerkAuth();
+  const { t, lang } = useLang();
+  const { toast } = useToast();
   const [grade, setGrade] = useState<string>(submission.grade?.toString() ?? "");
   const [feedback, setFeedback] = useState<string>(submission.feedback ?? "");
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
-    if (!user) return;
     const g = Number(grade);
     if (isNaN(g) || g < 0 || g > maxGrade) {
-      toast({ title: "درجة غير صحيحة", description: `بين 0 و ${maxGrade}`, variant: "destructive" });
+      toast({ title: lang === "ar" ? "درجة غير صحيحة" : "Invalid grade", description: `0 – ${maxGrade}`, variant: "destructive" });
       return;
     }
+    const token = await getToken().catch(() => null);
+    if (!token) return;
     setSaving(true);
     try {
-      await api.submissions.update(submission.id, { grade: g, feedback: feedback || undefined, status: "graded", gradedBy: user.id });
-      toast({ title: "تم حفظ الدرجة" });
+      await api.submissions.grade(submission.id, { grade: g, feedback: feedback || undefined }, token);
+      toast({ title: lang === "ar" ? "تم حفظ الدرجة" : "Grade saved!" });
       onSaved();
-    } catch (err: any) {
-      toast({ title: "خطأ", description: err.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
+    } catch (err: unknown) {
+      toast({ title: lang === "ar" ? "خطأ" : "Error", description: (err as Error).message, variant: "destructive" });
+    } finally { setSaving(false); }
   };
 
   return (
-    <div className="p-4 rounded-md border border-border bg-secondary/30 shadow-depth-sm">
+    <div className="p-4 rounded-xl border border-border bg-secondary/20">
       <div className="flex items-center justify-between mb-2">
-        <span className="font-medium">{submission.studentName}</span>
-        <span className="text-xs text-muted-foreground">{new Date(submission.submittedAt).toLocaleString("ar-EG")}</span>
+        <span className="font-medium text-sm">{submission.studentName || (lang === "ar" ? "طالب" : "Student")}</span>
+        <span className="text-xs text-muted-foreground">{new Date(submission.submittedAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-US")}</span>
       </div>
-      {submission.content && <p className="text-sm whitespace-pre-wrap mb-2">{submission.content}</p>}
-      {submission.fileUrl && (
-        <Button variant="outline" size="sm" onClick={() => onDownload(submission.fileUrl!)} className="mb-3">
-          <Download className="h-4 w-4 ml-1" /> تنزيل ملف الطالب
-        </Button>
-      )}
+      {submission.content && <p className="text-sm whitespace-pre-wrap mb-3 text-foreground leading-relaxed">{submission.content}</p>}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="space-y-1">
-          <Label className="text-xs">الدرجة (من {maxGrade})</Label>
-          <Input type="number" min="0" max={maxGrade} value={grade} onChange={(e) => setGrade(e.target.value)} />
+        <div>
+          <Label className="text-xs">{lang === "ar" ? `الدرجة (من ${maxGrade})` : `Grade (0–${maxGrade})`}</Label>
+          <Input type="number" min="0" max={maxGrade} value={grade} onChange={(e) => setGrade(e.target.value)} className="mt-1 h-8" />
         </div>
-        <div className="space-y-1 md:col-span-2">
-          <Label className="text-xs">ملاحظات</Label>
-          <Input value={feedback} onChange={(e) => setFeedback(e.target.value)} maxLength={500} />
+        <div className="md:col-span-2">
+          <Label className="text-xs">{lang === "ar" ? "ملاحظات" : "Feedback"}</Label>
+          <Input value={feedback} onChange={(e) => setFeedback(e.target.value)} maxLength={500} className="mt-1 h-8" />
         </div>
       </div>
-      <Button size="sm" className="mt-3" onClick={save} disabled={saving}>
-        <Save className="h-4 w-4 ml-1" /> حفظ
+      <Button size="sm" className="mt-3 gap-1.5" onClick={save} disabled={saving}>
+        <Save className="h-3.5 w-3.5" />
+        {saving ? "..." : t.save}
       </Button>
     </div>
   );

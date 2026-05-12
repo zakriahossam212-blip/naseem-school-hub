@@ -1,91 +1,71 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { coursesTable, courseEnrollmentsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
-import { CreateCourseBody, EnrollInCourseBody } from "@workspace/api-zod";
+import { eq, desc, and } from "drizzle-orm";
+import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
-router.get("/courses", async (req, res): Promise<void> => {
-  const { teacherId } = req.query as { teacherId?: string };
-  let courses;
-  if (teacherId) {
-    courses = await db.select().from(coursesTable).where(eq(coursesTable.teacherId, teacherId)).orderBy(desc(coursesTable.createdAt));
-  } else {
-    courses = await db.select().from(coursesTable).orderBy(desc(coursesTable.createdAt));
-  }
-  res.json(courses.map((c) => ({
-    id: c.id,
-    title: c.title,
-    description: c.description,
-    teacherId: c.teacherId,
-    createdAt: c.createdAt.toISOString(),
-  })));
+const mapCourse = (c: typeof coursesTable.$inferSelect) => ({
+  id: c.id,
+  title: c.title,
+  description: c.description,
+  teacherId: c.teacherId,
+  createdAt: c.createdAt.toISOString(),
 });
 
-router.post("/courses", async (req, res): Promise<void> => {
-  const parsed = CreateCourseBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+router.get("/courses", async (req, res): Promise<void> => {
+  const teacherId = typeof req.query.teacherId === "string" ? req.query.teacherId : undefined;
+  const courses = teacherId
+    ? await db.select().from(coursesTable).where(eq(coursesTable.teacherId, teacherId)).orderBy(desc(coursesTable.createdAt))
+    : await db.select().from(coursesTable).orderBy(desc(coursesTable.createdAt));
+  res.json(courses.map(mapCourse));
+});
+
+router.post("/courses", requireAuth, async (req, res): Promise<void> => {
+  const { title, description } = req.body as { title?: string; description?: string };
+  if (!title?.trim()) {
+    res.status(400).json({ error: "Title is required" });
     return;
   }
   const [course] = await db.insert(coursesTable).values({
-    title: parsed.data.title,
-    description: parsed.data.description || null,
-    teacherId: parsed.data.teacherId,
+    title: title.trim(),
+    description: description?.trim() || null,
+    teacherId: req.authUserId,
   }).returning();
-  res.status(201).json({
-    id: course.id,
-    title: course.title,
-    description: course.description,
-    teacherId: course.teacherId,
-    createdAt: course.createdAt.toISOString(),
-  });
+  res.status(201).json(mapCourse(course));
 });
 
 router.get("/courses/:id", async (req, res): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, id));
-  if (!course) {
-    res.status(404).json({ error: "Course not found" });
-    return;
-  }
-  res.json({
-    id: course.id,
-    title: course.title,
-    description: course.description,
-    teacherId: course.teacherId,
-    createdAt: course.createdAt.toISOString(),
-  });
+  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, req.params.id));
+  if (!course) { res.status(404).json({ error: "Course not found" }); return; }
+  res.json(mapCourse(course));
 });
 
-router.post("/courses/:id/enroll", async (req, res): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const parsed = EnrollInCourseBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const { studentId } = parsed.data;
+router.put("/courses/:id", requireAuth, async (req, res): Promise<void> => {
+  const { title, description } = req.body as { title?: string; description?: string };
+  const [existing] = await db.select().from(coursesTable).where(eq(coursesTable.id, req.params.id));
+  if (!existing) { res.status(404).json({ error: "Course not found" }); return; }
+  if (existing.teacherId !== req.authUserId) { res.status(403).json({ error: "Forbidden" }); return; }
+  const [updated] = await db.update(coursesTable)
+    .set({ title: title?.trim() ?? existing.title, description: description?.trim() ?? existing.description })
+    .where(eq(coursesTable.id, req.params.id))
+    .returning();
+  res.json(mapCourse(updated));
+});
 
+router.post("/courses/:id/enroll", requireAuth, async (req, res): Promise<void> => {
+  const courseId = req.params.id;
+  const studentId = req.authUserId;
   const existing = await db.select().from(courseEnrollmentsTable)
-    .where(eq(courseEnrollmentsTable.courseId, id));
-  const alreadyEnrolled = existing.some((e) => e.studentId === studentId);
-  if (alreadyEnrolled) {
-    res.status(409).json({ error: "Already enrolled" });
-    return;
-  }
-
-  await db.insert(courseEnrollmentsTable).values({ courseId: id, studentId });
+    .where(and(eq(courseEnrollmentsTable.courseId, courseId), eq(courseEnrollmentsTable.studentId, studentId)));
+  if (existing.length > 0) { res.status(409).json({ error: "Already enrolled" }); return; }
+  await db.insert(courseEnrollmentsTable).values({ courseId, studentId });
   res.status(201).json({ success: true });
 });
 
-router.get("/enrollments", async (req, res): Promise<void> => {
-  const { studentId } = req.query as { studentId?: string };
-  if (!studentId) {
-    res.json([]);
-    return;
-  }
+router.get("/enrollments", requireAuth, async (req, res): Promise<void> => {
+  const studentId = typeof req.query.studentId === "string" ? req.query.studentId : req.authUserId;
   const enrollments = await db.select().from(courseEnrollmentsTable)
     .where(eq(courseEnrollmentsTable.studentId, studentId));
   res.json(enrollments.map((e) => e.courseId));

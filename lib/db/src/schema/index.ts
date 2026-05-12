@@ -4,3 +4,7 @@ export * from "./courses";
 export * from "./courseEnrollments";
 export * from "./assignments";
 export * from "./submissions";
+export * from "./lessons";
+export * from "./schedule";
+export * from "./parentStudent";
+export * from "./messages";
