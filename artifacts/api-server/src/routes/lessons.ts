@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { lessonsTable, coursesTable } from "@workspace/db";
 import { eq, asc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireRole } from "../middlewares/requireRole";
 
 const router: IRouter = Router();
 
@@ -26,7 +27,7 @@ router.get("/lessons", async (req, res): Promise<void> => {
   res.json(lessons.map(mapLesson));
 });
 
-router.post("/lessons", requireAuth, async (req, res): Promise<void> => {
+router.post("/lessons", requireAuth, requireRole("teacher", "admin"), async (req, res): Promise<void> => {
   const { courseId, title, content, videoUrl, orderIndex } =
     req.body as { courseId?: string; title?: string; content?: string; videoUrl?: string; orderIndex?: number };
   if (!courseId || !title?.trim()) { res.status(400).json({ error: "courseId and title required" }); return; }

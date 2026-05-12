@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { coursesTable, courseEnrollmentsTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireRole } from "../middlewares/requireRole";
 
 const router: IRouter = Router();
 
@@ -22,7 +23,7 @@ router.get("/courses", async (req, res): Promise<void> => {
   res.json(courses.map(mapCourse));
 });
 
-router.post("/courses", requireAuth, async (req, res): Promise<void> => {
+router.post("/courses", requireAuth, requireRole("teacher", "admin"), async (req, res): Promise<void> => {
   const { title, description } = req.body as { title?: string; description?: string };
   if (!title?.trim()) {
     res.status(400).json({ error: "Title is required" });

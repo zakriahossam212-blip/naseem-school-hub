@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { scheduleEntriesTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireRole } from "../middlewares/requireRole";
 
 const router: IRouter = Router();
 
@@ -26,7 +27,7 @@ router.get("/schedule", async (_req, res): Promise<void> => {
   res.json(entries.map(mapEntry));
 });
 
-router.post("/schedule", requireAuth, async (req, res): Promise<void> => {
+router.post("/schedule", requireAuth, requireRole("teacher", "admin"), async (req, res): Promise<void> => {
   const { title, type, courseId, dayOfWeek, startTime, endTime, specificDate, location, notes } =
     req.body as {
       title?: string; type?: "lesson" | "exam" | "event";
