@@ -37,25 +37,27 @@ router.post("/courses", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.get("/courses/:id", async (req, res): Promise<void> => {
-  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, req.params.id));
+  const id = String(req.params.id);
+  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, id));
   if (!course) { res.status(404).json({ error: "Course not found" }); return; }
   res.json(mapCourse(course));
 });
 
 router.put("/courses/:id", requireAuth, async (req, res): Promise<void> => {
+  const id = String(req.params.id);
   const { title, description } = req.body as { title?: string; description?: string };
-  const [existing] = await db.select().from(coursesTable).where(eq(coursesTable.id, req.params.id));
+  const [existing] = await db.select().from(coursesTable).where(eq(coursesTable.id, id));
   if (!existing) { res.status(404).json({ error: "Course not found" }); return; }
   if (existing.teacherId !== req.authUserId) { res.status(403).json({ error: "Forbidden" }); return; }
   const [updated] = await db.update(coursesTable)
     .set({ title: title?.trim() ?? existing.title, description: description?.trim() ?? existing.description })
-    .where(eq(coursesTable.id, req.params.id))
+    .where(eq(coursesTable.id, id))
     .returning();
   res.json(mapCourse(updated));
 });
 
 router.post("/courses/:id/enroll", requireAuth, async (req, res): Promise<void> => {
-  const courseId = req.params.id;
+  const courseId = String(req.params.id);
   const studentId = req.authUserId;
   const existing = await db.select().from(courseEnrollmentsTable)
     .where(and(eq(courseEnrollmentsTable.courseId, courseId), eq(courseEnrollmentsTable.studentId, studentId)));

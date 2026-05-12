@@ -34,9 +34,9 @@ router.post("/auth/ensure-profile", requireAuth, async (req, res): Promise<void>
   // Only assign role if user has none yet (first onboarding); users cannot reassign themselves
   const existingRoles = await db.select().from(userRolesTable).where(eq(userRolesTable.userId, userId));
   if (existingRoles.length === 0) {
-    const assignedRole = VALID_SELF_ASSIGN_ROLES.has(role ?? "")
-      ? (role as "student" | "teacher" | "parent")
-      : "student";
+    const assignedRole = (
+      VALID_SELF_ASSIGN_ROLES.has(role ?? "") ? role : "student"
+    ) as "student" | "teacher" | "parent";
     await db.insert(userRolesTable).values({ userId, role: assignedRole });
   }
 

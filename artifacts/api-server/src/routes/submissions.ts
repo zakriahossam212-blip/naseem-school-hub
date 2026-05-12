@@ -68,7 +68,8 @@ router.post("/submissions", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.patch("/submissions/:id", requireAuth, async (req, res): Promise<void> => {
-  const [sub] = await db.select().from(submissionsTable).where(eq(submissionsTable.id, req.params.id));
+  const subId = String(req.params.id);
+  const [sub] = await db.select().from(submissionsTable).where(eq(submissionsTable.id, subId));
   if (!sub) { res.status(404).json({ error: "Not found" }); return; }
 
   const { content, fileUrl, grade, feedback, status } =
@@ -98,7 +99,7 @@ router.patch("/submissions/:id", requireAuth, async (req, res): Promise<void> =>
   }
 
   const [updated] = await db.update(submissionsTable)
-    .set(updates).where(eq(submissionsTable.id, req.params.id)).returning();
+    .set(updates).where(eq(submissionsTable.id, subId)).returning();
   res.json(mapSub(updated));
 });
 

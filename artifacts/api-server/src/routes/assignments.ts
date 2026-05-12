@@ -49,16 +49,18 @@ router.post("/assignments", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.get("/assignments/:id", async (req, res): Promise<void> => {
-  const [assignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, req.params.id));
+  const id = String(req.params.id);
+  const [assignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, id));
   if (!assignment) { res.status(404).json({ error: "Assignment not found" }); return; }
   res.json(mapAssignment(assignment));
 });
 
 router.delete("/assignments/:id", requireAuth, async (req, res): Promise<void> => {
-  const [assignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, req.params.id));
+  const id = String(req.params.id);
+  const [assignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, id));
   if (!assignment) { res.status(404).json({ error: "Not found" }); return; }
   if (assignment.createdBy !== req.authUserId) { res.status(403).json({ error: "Forbidden" }); return; }
-  await db.delete(assignmentsTable).where(eq(assignmentsTable.id, req.params.id));
+  await db.delete(assignmentsTable).where(eq(assignmentsTable.id, id));
   res.json({ success: true });
 });
 

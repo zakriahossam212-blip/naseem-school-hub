@@ -79,9 +79,17 @@ export default function AssignmentDetail() {
     }
     try {
       if (mySubmission) {
-        await api.submissions.grade(mySubmission.id, { grade: mySubmission.grade ?? 0 }, token);
+        // Student updating their own existing submission (content/file only)
+        await api.submissions.update(mySubmission.id, {
+          content: content || undefined,
+          fileUrl: fileUrl || undefined,
+        }, token);
       } else {
-        const newSub = await api.submissions.create({ assignmentId: id, content: content || undefined, fileUrl: fileUrl || undefined }, token);
+        const newSub = await api.submissions.create({
+          assignmentId: id,
+          content: content || undefined,
+          fileUrl: fileUrl || undefined,
+        }, token);
         setMySubmission(newSub);
       }
       setSaving(false);

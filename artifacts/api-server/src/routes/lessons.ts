@@ -45,7 +45,8 @@ router.post("/lessons", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.put("/lessons/:id", requireAuth, async (req, res): Promise<void> => {
-  const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, req.params.id));
+  const id = String(req.params.id);
+  const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, id));
   if (!lesson) { res.status(404).json({ error: "Not found" }); return; }
   if (lesson.createdBy !== req.authUserId) { res.status(403).json({ error: "Forbidden" }); return; }
   const { title, content, videoUrl, orderIndex } =
@@ -55,15 +56,16 @@ router.put("/lessons/:id", requireAuth, async (req, res): Promise<void> => {
     content: content?.trim() ?? lesson.content,
     videoUrl: videoUrl?.trim() ?? lesson.videoUrl,
     orderIndex: orderIndex ?? lesson.orderIndex,
-  }).where(eq(lessonsTable.id, req.params.id)).returning();
+  }).where(eq(lessonsTable.id, id)).returning();
   res.json(mapLesson(updated));
 });
 
 router.delete("/lessons/:id", requireAuth, async (req, res): Promise<void> => {
-  const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, req.params.id));
+  const id = String(req.params.id);
+  const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, id));
   if (!lesson) { res.status(404).json({ error: "Not found" }); return; }
   if (lesson.createdBy !== req.authUserId) { res.status(403).json({ error: "Forbidden" }); return; }
-  await db.delete(lessonsTable).where(eq(lessonsTable.id, req.params.id));
+  await db.delete(lessonsTable).where(eq(lessonsTable.id, id));
   res.json({ success: true });
 });
 

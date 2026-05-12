@@ -51,10 +51,11 @@ router.post("/schedule", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.delete("/schedule/:id", requireAuth, async (req, res): Promise<void> => {
-  const [entry] = await db.select().from(scheduleEntriesTable).where(eq(scheduleEntriesTable.id, req.params.id));
+  const id = String(req.params.id);
+  const [entry] = await db.select().from(scheduleEntriesTable).where(eq(scheduleEntriesTable.id, id));
   if (!entry) { res.status(404).json({ error: "Not found" }); return; }
   if (entry.createdBy !== req.authUserId) { res.status(403).json({ error: "Forbidden" }); return; }
-  await db.delete(scheduleEntriesTable).where(eq(scheduleEntriesTable.id, req.params.id));
+  await db.delete(scheduleEntriesTable).where(eq(scheduleEntriesTable.id, id));
   res.json({ success: true });
 });
 

@@ -72,7 +72,11 @@ export const api = {
     },
     create: (body: { assignmentId: string; content?: string; fileUrl?: string }, token: string) =>
       req<SubmissionDto>("/submissions", { method: "POST", body: JSON.stringify(body), token }),
-    grade: (id: string, body: { grade: number; feedback?: string; status?: string }, token: string) =>
+    /** Student: update their own submission content/fileUrl before grading */
+    update: (id: string, body: { content?: string; fileUrl?: string }, token: string) =>
+      req<SubmissionDto>(`/submissions/${id}`, { method: "PATCH", body: JSON.stringify(body), token }),
+    /** Teacher: grade a submission */
+    grade: (id: string, body: { grade: number; feedback?: string }, token: string) =>
       req<SubmissionDto>(`/submissions/${id}`, { method: "PATCH", body: JSON.stringify(body), token }),
   },
   schedule: {
