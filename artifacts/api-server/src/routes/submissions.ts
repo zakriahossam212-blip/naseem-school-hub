@@ -21,32 +21,35 @@ const mapSub = (s: typeof submissionsTable.$inferSelect) => ({
 });
 
 router.get("/submissions", requireAuth, async (req, res): Promise<void> => {
+  const callerId = req.authUserId;
   const assignmentId = typeof req.query.assignmentId === "string" ? req.query.assignmentId : undefined;
-  const studentId = typeof req.query.studentId === "string" ? req.query.studentId : undefined;
 
-  let subs;
-  if (assignmentId && studentId) {
-    subs = await db.select().from(submissionsTable)
-      .where(and(eq(submissionsTable.assignmentId, assignmentId), eq(submissionsTable.studentId, studentId)));
-  } else if (assignmentId) {
-    // Only course teacher may see all submissions for an assignment
+  if (assignmentId) {
+    // Resolve the assignment's course teacher
     const [assignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, assignmentId));
-    if (assignment) {
-      const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, assignment.courseId));
-      if (!course || course.teacherId !== req.authUserId) {
-        res.status(403).json({ error: "Forbidden" }); return;
-      }
+    if (!assignment) { res.json([]); return; }
+    const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, assignment.courseId));
+    const isCourseTeacher = course?.teacherId === callerId;
+
+    if (isCourseTeacher) {
+      // Teacher: return all submissions for this assignment
+      const subs = await db.select().from(submissionsTable)
+        .where(eq(submissionsTable.assignmentId, assignmentId))
+        .orderBy(desc(submissionsTable.submittedAt));
+      res.json(subs.map(mapSub));
+    } else {
+      // Student (or anyone else): only return their own submission
+      const subs = await db.select().from(submissionsTable)
+        .where(and(eq(submissionsTable.assignmentId, assignmentId), eq(submissionsTable.studentId, callerId)));
+      res.json(subs.map(mapSub));
     }
-    subs = await db.select().from(submissionsTable)
-      .where(eq(submissionsTable.assignmentId, assignmentId)).orderBy(desc(submissionsTable.submittedAt));
-  } else if (studentId) {
-    if (studentId !== req.authUserId) { res.status(403).json({ error: "Forbidden" }); return; }
-    subs = await db.select().from(submissionsTable)
-      .where(eq(submissionsTable.studentId, studentId)).orderBy(desc(submissionsTable.submittedAt));
-  } else {
-    subs = await db.select().from(submissionsTable)
-      .where(eq(submissionsTable.studentId, req.authUserId)).orderBy(desc(submissionsTable.submittedAt));
+    return;
   }
+
+  // No assignmentId: return caller's own submissions
+  const subs = await db.select().from(submissionsTable)
+    .where(eq(submissionsTable.studentId, callerId))
+    .orderBy(desc(submissionsTable.submittedAt));
   res.json(subs.map(mapSub));
 });
 

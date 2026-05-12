@@ -1,43 +1,51 @@
 import { Router, type IRouter } from "express";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
+import { requireAuth } from "../middlewares/requireAuth";
+import { ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
+const storage = new ObjectStorageService();
 
-const uploadDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
-  },
+/**
+ * POST /files/upload-url  (auth required)
+ * Returns a presigned GCS PUT URL and the resulting objectPath.
+ */
+router.post("/files/upload-url", requireAuth, async (_req, res): Promise<void> => {
+  try {
+    const uploadURL = await storage.getObjectEntityUploadURL();
+    const objectPath = storage.normalizeObjectEntityPath(uploadURL);
+    res.json({ uploadURL, objectPath });
+  } catch (err) {
+    console.error("GCS presign error", err);
+    res.status(500).json({ error: "Failed to generate upload URL" });
+  }
 });
 
-const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
-
-router.post("/files/upload", upload.single("file"), (req, res): void => {
-  if (!req.file) {
-    res.status(400).json({ error: "No file uploaded" });
-    return;
+/**
+ * GET /files/objects  (auth required)
+ * Proxy-stream a private GCS object. Pass the object sub-path as ?path=...
+ * e.g. GET /files/objects?path=uploads/some-uuid
+ */
+router.get("/files/objects", requireAuth, async (req, res): Promise<void> => {
+  const subPath = typeof req.query.path === "string" ? req.query.path.replace(/^\/+/, "") : "";
+  if (!subPath) { res.status(400).json({ error: "path query param required" }); return; }
+  const rawPath = "/objects/" + subPath;
+  try {
+    const file = await storage.getObjectEntityFile(rawPath);
+    const response = await storage.downloadObject(file);
+    const contentType = response.headers.get("content-type") ?? "application/octet-stream";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    const buffer = await response.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch (err: unknown) {
+    const msg = (err as Error).message ?? "";
+    if (msg.includes("not found") || msg.includes("404")) {
+      res.status(404).json({ error: "File not found" });
+    } else {
+      console.error("GCS serve error", err);
+      res.status(500).json({ error: "Failed to serve file" });
+    }
   }
-  const url = `/api/files/${req.file.filename}`;
-  res.json({ url });
-});
-
-router.get("/files/:filename", (req, res): void => {
-  const filename = Array.isArray(req.params.filename) ? req.params.filename[0] : req.params.filename;
-  const safeName = path.basename(filename);
-  const filePath = path.join(uploadDir, safeName);
-  if (!fs.existsSync(filePath)) {
-    res.status(404).json({ error: "File not found" });
-    return;
-  }
-  res.sendFile(filePath);
 });
 
 export default router;

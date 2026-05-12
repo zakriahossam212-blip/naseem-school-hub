@@ -2,7 +2,7 @@ import { pgTable, text, uuid, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const appRoleEnum = pgEnum("app_role", ["admin", "teacher", "student"]);
+export const appRoleEnum = pgEnum("app_role", ["admin", "teacher", "student", "parent"]);
 
 export const userRolesTable = pgTable("user_roles", {
   id: uuid("id").primaryKey().defaultRandom(),

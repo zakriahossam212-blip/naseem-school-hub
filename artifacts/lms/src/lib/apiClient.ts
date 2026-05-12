@@ -64,11 +64,11 @@ export const api = {
       req<{ success: boolean }>(`/assignments/${id}`, { method: "DELETE", token }),
   },
   submissions: {
-    list: (params: { assignmentId?: string; studentId?: string }, token: string) => {
-      const qs = new URLSearchParams(
-        Object.entries(params).filter(([, v]) => v) as [string, string][],
-      ).toString();
-      return req<SubmissionDto[]>(`/submissions${qs ? `?${qs}` : ""}`, { token });
+    list: (params: { assignmentId?: string }, token: string) => {
+      const qs = params.assignmentId
+        ? `?assignmentId=${encodeURIComponent(params.assignmentId)}`
+        : "";
+      return req<SubmissionDto[]>(`/submissions${qs}`, { token });
     },
     create: (body: { assignmentId: string; content?: string; fileUrl?: string }, token: string) =>
       req<SubmissionDto>("/submissions", { method: "POST", body: JSON.stringify(body), token }),
@@ -99,14 +99,26 @@ export const api = {
       req<{ success: boolean }>(`/messages/${id}/read`, { method: "PATCH", body: JSON.stringify({}), token }),
   },
   files: {
-    upload: async (file: File, token?: string): Promise<{ url: string }> => {
-      const formData = new FormData();
-      formData.append("file", file);
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-      const res = await fetch(BASE + "/files/upload", { method: "POST", headers, body: formData });
-      if (!res.ok) throw new Error("Upload failed");
-      return res.json() as Promise<{ url: string }>;
+    /**
+     * Two-step GCS presigned upload:
+     * 1. Request a presigned PUT URL from the server (auth required)
+     * 2. Upload the file directly to GCS
+     * Returns { url } — the serving path stored in the DB
+     */
+    upload: async (file: File, token: string): Promise<{ url: string }> => {
+      // Step 1: get presigned URL
+      const { uploadURL, objectPath } = await req<{ uploadURL: string; objectPath: string }>(
+        "/files/upload-url",
+        { method: "POST", body: JSON.stringify({}), token },
+      );
+      // Step 2: upload directly to GCS (no auth header — presigned URL is self-contained)
+      const gcsRes = await fetch(uploadURL, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!gcsRes.ok) throw new Error(`GCS upload failed: ${gcsRes.status}`);
+      return { url: objectPath };
     },
   },
 };

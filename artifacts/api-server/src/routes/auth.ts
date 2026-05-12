@@ -1,5 +1,4 @@
 import { Router, type IRouter } from "express";
-import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { profilesTable, userRolesTable } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
@@ -18,25 +17,34 @@ router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
   });
 });
 
+const VALID_SELF_ASSIGN_ROLES = new Set(["student", "teacher", "parent"]);
+
 router.post("/auth/ensure-profile", requireAuth, async (req, res): Promise<void> => {
   const userId = req.authUserId;
-  const { fullName, role } = req.body as { fullName?: string; role?: "student" | "teacher" };
+  const { fullName, role } = req.body as { fullName?: string; role?: string };
 
+  // Upsert profile
   const existing = await db.select().from(profilesTable).where(eq(profilesTable.userId, userId));
   if (existing.length === 0) {
     await db.insert(profilesTable).values({ userId, fullName: fullName ?? null });
+  } else if (fullName) {
+    await db.update(profilesTable).set({ fullName }).where(eq(profilesTable.userId, userId));
   }
 
+  // Only assign role if user has none yet (first onboarding); users cannot reassign themselves
   const existingRoles = await db.select().from(userRolesTable).where(eq(userRolesTable.userId, userId));
   if (existingRoles.length === 0) {
-    const assignedRole: "student" | "teacher" = role === "teacher" ? "teacher" : "student";
+    const assignedRole = VALID_SELF_ASSIGN_ROLES.has(role ?? "")
+      ? (role as "student" | "teacher" | "parent")
+      : "student";
     await db.insert(userRolesTable).values({ userId, role: assignedRole });
   }
 
   const roles = await db.select().from(userRolesTable).where(eq(userRolesTable.userId, userId));
+  const [profile] = await db.select().from(profilesTable).where(eq(profilesTable.userId, userId));
   res.json({
     userId,
-    fullName: fullName ?? existing[0]?.fullName ?? null,
+    fullName: profile?.fullName ?? null,
     roles: roles.map((r) => r.role),
   });
 });

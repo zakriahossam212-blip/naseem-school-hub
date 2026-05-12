@@ -65,9 +65,9 @@ router.post("/courses/:id/enroll", requireAuth, async (req, res): Promise<void> 
 });
 
 router.get("/enrollments", requireAuth, async (req, res): Promise<void> => {
-  const studentId = typeof req.query.studentId === "string" ? req.query.studentId : req.authUserId;
+  // Always scope to the authenticated caller — no cross-user enrollment reads
   const enrollments = await db.select().from(courseEnrollmentsTable)
-    .where(eq(courseEnrollmentsTable.studentId, studentId));
+    .where(eq(courseEnrollmentsTable.studentId, req.authUserId));
   res.json(enrollments.map((e) => e.courseId));
 });
 
