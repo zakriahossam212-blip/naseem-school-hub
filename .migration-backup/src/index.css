@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* مدرسة نصر الدين - نظام التصميم */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
+
+@layer base {
+  :root {
+    /* Trinidad Color Palette */
+    --trinidad-50: 28 100% 97%;
+    --trinidad-100: 30 90% 92%;
+    --trinidad-200: 28 85% 83%;
+    --trinidad-300: 27 89% 72%;
+    --trinidad-400: 24 87% 60%;
+    --trinidad-500: 22 86% 53%;
+    --trinidad-600: 18 86% 50%;
+    --trinidad-700: 16 80% 40%;
+    --trinidad-800: 14 70% 34%;
+    --trinidad-900: 12 66% 28%;
+    --trinidad-950: 10 75% 15%;
+
+    /* Semantic Colors */
+    --background: var(--trinidad-50);
+    --foreground: var(--trinidad-900);
+
+    --card: 0 0% 100%;
+    --card-foreground: var(--trinidad-800);
+
+    --popover: 0 0% 100%;
+    --popover-foreground: var(--trinidad-800);
+
+    --primary: var(--trinidad-500);
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: var(--trinidad-100);
+    --secondary-foreground: var(--trinidad-800);
+
+    --muted: var(--trinidad-100);
+    --muted-foreground: var(--trinidad-600);
+
+    --accent: var(--trinidad-100);
+    --accent-foreground: var(--trinidad-800);
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: var(--trinidad-200);
+    --input: var(--trinidad-200);
+    --ring: var(--trinidad-500);
+
+    --radius: 0.75rem;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: var(--trinidad-800);
+    --sidebar-primary: var(--trinidad-500);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: var(--trinidad-100);
+    --sidebar-accent-foreground: var(--trinidad-800);
+    --sidebar-border: var(--trinidad-200);
+    --sidebar-ring: var(--trinidad-500);
+
+    /* Custom Shadows for Depth */
+    --shadow-sm: 0 1px 2px 0 hsl(var(--trinidad-900) / 0.03);
+    --shadow-md: 0 2px 8px -2px hsl(var(--trinidad-900) / 0.06), 0 1px 3px -1px hsl(var(--trinidad-900) / 0.04);
+    --shadow-lg: 0 4px 16px -4px hsl(var(--trinidad-900) / 0.08), 0 2px 6px -2px hsl(var(--trinidad-900) / 0.05);
+    --shadow-card: 0 1px 3px 0 hsl(var(--trinidad-900) / 0.04), 0 1px 2px -1px hsl(var(--trinidad-900) / 0.03);
+    --shadow-card-hover: 0 4px 12px -2px hsl(var(--trinidad-900) / 0.08), 0 2px 4px -2px hsl(var(--trinidad-900) / 0.04);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    direction: rtl;
+  }
+
+  body {
+    @apply bg-background text-foreground font-cairo antialiased;
+  }
+}
+
+@layer utilities {
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  
+  .shadow-card-hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .shadow-depth-sm {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .shadow-depth-md {
+    box-shadow: var(--shadow-md);
+  }
+
+  .shadow-depth-lg {
+    box-shadow: var(--shadow-lg);
+  }
+}
