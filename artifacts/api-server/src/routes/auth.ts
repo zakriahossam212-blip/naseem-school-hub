@@ -49,6 +49,26 @@ router.post("/auth/ensure-profile", requireAuth, async (req, res): Promise<void>
   });
 });
 
+// POST /auth/make-admin — promote caller to admin using a secret key
+const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "nasreldin-admin-2025";
+router.post("/auth/make-admin", requireAuth, async (req, res): Promise<void> => {
+  const { secret } = req.body as { secret?: string };
+  if (!secret || secret !== ADMIN_SECRET) {
+    res.status(403).json({ error: "Invalid secret" });
+    return;
+  }
+  const userId = req.authUserId;
+  // Remove any existing roles and set admin
+  await db.delete(userRolesTable).where(eq(userRolesTable.userId, userId));
+  await db.insert(userRolesTable).values({ userId, role: "admin" });
+  // Ensure profile exists
+  const existing = await db.select().from(profilesTable).where(eq(profilesTable.userId, userId));
+  if (existing.length === 0) {
+    await db.insert(profilesTable).values({ userId, fullName: null });
+  }
+  res.json({ success: true, role: "admin" });
+});
+
 router.get("/profiles/:userId", async (req, res): Promise<void> => {
   const userId = req.params.userId;
   const [profile] = await db.select().from(profilesTable).where(eq(profilesTable.userId, userId));

@@ -34,6 +34,7 @@ const TeacherGrades = lazy(() => import("./pages/teacher/TeacherGrades"));
 const ParentPortal = lazy(() => import("./pages/parent/ParentPortal"));
 const ParentStudentDetail = lazy(() => import("./pages/parent/ParentStudentDetail"));
 const Messages = lazy(() => import("./pages/Messages"));
+const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -90,6 +91,7 @@ export default function App() {
                     <Route path="/parent" element={<ParentPortal />} />
                     <Route path="/parent/students/:studentId" element={<ParentStudentDetail />} />
 
+                    <Route path="/admin-setup" element={<AdminSetup />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
