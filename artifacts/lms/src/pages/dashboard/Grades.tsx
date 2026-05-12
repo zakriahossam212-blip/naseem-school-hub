@@ -36,7 +36,7 @@ export default function Grades() {
       if (!userId) return;
       const token = await getToken().catch(() => null);
       if (!token) { setLoading(false); return; }
-      const subs = await api.submissions.list({ studentId: userId }, token).catch(() => []);
+      const subs = await api.submissions.list({}, token).catch(() => []);
       const aIds = Array.from(new Set(subs.map((s) => s.assignmentId)));
       const aMap: Record<string, { title: string; maxGrade: number; courseId: string }> = {};
       const cMap: Record<string, string> = {};

@@ -52,7 +52,7 @@ export default function AssignmentDetail() {
       const ids = Array.from(new Set(subs.map((r) => r.studentId)));
       const names: Record<string, string> = {};
       if (ids.length) {
-        const profs = await api.profiles.list(ids).catch(() => []);
+        const profs = await api.profiles.list(ids).catch(() => [] as import("@/lib/apiClient").ProfileDto[]);
         profs.forEach((p) => { names[p.userId] = p.fullName || (lang === "ar" ? "طالب" : "Student"); });
       }
       setSubmissions(subs.map((r) => ({ ...r, studentName: names[r.studentId] })));
