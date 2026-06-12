@@ -1,55 +1,40 @@
 # Contributing
 
-Thank you for your interest in contributing! Please follow these guidelines.
+We love contributions! Please follow these simple guidelines.
 
-## Getting Started
-
-1. Fork the repository
-2. Clone your fork
-3. Install dependencies: `npm install`
-4. Create a branch: `git checkout -b feature/your-feature`
-
-## Development
+## Quick Start
 
 ```bash
-npm run dev          # Start development server
-npm run typecheck    # Check TypeScript types
-npm run build        # Build for production
+npm install
+npm run dev
 ```
 
 ## Making Changes
 
-1. Make your changes in a feature branch
-2. Test thoroughly locally
-3. Ensure TypeScript has no errors
-4. Commit with clear messages
-5. Push to your fork
-6. Create a pull request
+1. Create a feature branch: `git checkout -b feature/your-feature`
+2. Make your changes
+3. Test locally: `npm run typecheck && npm run build`
+4. Commit with a clear message: `git commit -m "Add feature description"`
+5. Push and create a Pull Request
 
-## Code Style
+## Code Guidelines
 
-- Use TypeScript for all code
-- Follow existing code patterns
-- Use meaningful variable names
+- Use TypeScript
+- Follow existing patterns
+- Keep components focused
 - Add comments for complex logic
 
-## Commit Messages
+## Commit Format
 
-- Use clear, descriptive messages
-- Start with a verb: "Add", "Fix", "Update", etc.
-- Keep commits focused and atomic
+```
+type: description
 
-## Pull Request Process
+- Change 1
+- Change 2
+```
 
-1. Update README.md with any new features
-2. Ensure all tests pass
-3. Get approval from maintainers
-4. Merge when ready
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
-## Reporting Bugs
+## Reporting Issues
 
-Use the bug report template when creating issues. Include:
-- Steps to reproduce
-- Expected behavior
-- Actual behavior
-- Screenshots (if applicable)
+Use templates for [bugs](https://github.com/Mostafa-SAID7/naseem-school-hub/issues/new?template=bug_report.md) and [features](https://github.com/Mostafa-SAID7/naseem-school-hub/issues/new?template=feature_request.md).

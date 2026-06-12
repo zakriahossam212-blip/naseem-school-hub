@@ -1,31 +1,27 @@
 # Code of Conduct
 
-## Our Pledge
+## Our Commitment
 
-We are committed to providing a welcoming and inspiring community for all. We pledge to create an environment free of harassment based on age, body size, disability, ethnicity, gender identity, experience level, nationality, personal appearance, race, religion, sexual identity, or sexual orientation.
+We are committed to providing a welcoming, inclusive, and respectful community.
 
-## Our Standards
+## Expected Behavior
 
-Examples of behavior that contributes to creating a positive environment include:
+- Be respectful and kind
+- Welcome diverse viewpoints
+- Accept constructive criticism gracefully
+- Focus on the best for the community
 
-- Using welcoming and inclusive language
-- Being respectful of differing viewpoints and experiences
-- Gracefully accepting constructive criticism
-- Focusing on what is best for the community
-- Showing empathy towards other community members
+## Unacceptable Behavior
 
-Examples of unacceptable behavior include:
+- Harassment or discrimination
+- Trolling or insulting comments
+- Disrespectful language
+- Any form of abuse
 
-- Harassment of any kind
-- Trolling, insulting/derogatory comments
-- Discrimination
-- Publishing others' private information
-- Violence or threats of violence
+## Reporting
 
-## Enforcement
+Report violations by contacting maintainers. All reports are confidential and investigated promptly.
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project maintainers. All complaints will be reviewed and investigated.
+---
 
-## Attribution
-
-This Code of Conduct is adapted from the Contributor Covenant, version 2.0.
+Based on the [Contributor Covenant](https://www.contributor-covenant.org/) v2.0
