@@ -1,8 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 @layer base {
   :root {
@@ -65,7 +62,8 @@
   }
 
   body {
-    @apply bg-background text-foreground font-cairo antialiased;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Cairo', sans-serif;
   }
 
   /* ─── Custom scrollbar ─── */
