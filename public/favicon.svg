@@ -1,3 +1,20 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="192" height="192" rx="48" fill="#e8621a"/>
+  
+  <!-- Book/Education Icon -->
+  <g transform="translate(48, 48)">
+    <!-- Book spine -->
+    <path d="M 24 10 L 24 90 Q 24 96 18 96 L 6 96 Q 0 96 0 90 L 0 10 Q 0 4 6 4 L 18 4 Q 24 4 24 10 Z" fill="white" opacity="0.9"/>
+    
+    <!-- Book pages -->
+    <path d="M 32 10 L 96 10 Q 96 10 96 16 L 96 90 Q 96 96 90 96 L 32 96 Q 32 96 32 90 L 32 10 Z" fill="white" stroke="white" stroke-width="2"/>
+    
+    <!-- Lines representing text -->
+    <line x1="42" y1="25" x2="86" y2="25" stroke="#e8621a" stroke-width="2" stroke-linecap="round"/>
+    <line x1="42" y1="38" x2="86" y2="38" stroke="#e8621a" stroke-width="2" stroke-linecap="round"/>
+    <line x1="42" y1="51" x2="86" y2="51" stroke="#e8621a" stroke-width="2" stroke-linecap="round"/>
+    <line x1="42" y1="64" x2="80" y2="64" stroke="#e8621a" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="42" y1="77" x2="80" y2="77" stroke="#e8621a" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
 </svg>
