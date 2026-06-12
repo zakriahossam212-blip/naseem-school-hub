@@ -1,32 +1,17 @@
-modules = ["nodejs-24", "python-3.11"]
+modules = ["nodejs-20"]
+hidden = [".config", "**/__pycache__", ".git"]
 
-[deployment]
-router = "application"
-deploymentTarget = "autoscale"
+[nix]
+channel = "stable-25.05"
 
-[deployment.postBuild]
-args = ["pnpm", "store", "prune"]
-env = { "CI" = "true" }
+[env]
+PATH = "/home/runner/.cargo/bin:/home/runner/.bun/bin:/home/runner/.nvm/versions/node/v20.17.0/bin:/home/runner/.local/bin:/home/runner/.config/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+NPM_CONFIG_PREFIX = "/home/runner/.npm-global"
 
-[workflows]
-runButton = "Project"
-
-[agent]
-stack = "PNPM_WORKSPACE"
-expertMode = true
-
-[postMerge]
-path = "scripts/post-merge.sh"
-timeoutMs = 20000
+[workflow]
+run = "npm install && npm run dev"
 
 [[ports]]
-localPort = 8080
+localPort = 5173
 externalPort = 80
 
-[[ports]]
-localPort = 8081
-externalPort = 8081
-
-[[ports]]
-localPort = 22419
-externalPort = 3000

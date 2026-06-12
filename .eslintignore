@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+.turbo
+coverage
+*.config.js
+*.config.ts
+dist-ssr
+*.local
+vite-env.d.ts
