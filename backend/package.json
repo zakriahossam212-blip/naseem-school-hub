@@ -15,9 +15,10 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@clerk/backend": "^0.25.0",
-    "@clerk/express": "^0.25.0",
+    "@clerk/backend": "^0.50.0",
+    "@clerk/express": "^0.50.0",
     "@prisma/client": "^5.23.0",
+    "@supabase/supabase-js": "^2.38.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",

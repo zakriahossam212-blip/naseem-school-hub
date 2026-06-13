@@ -1,0 +1,294 @@
+// Prisma Schema - Naseem School Hub
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USER & AUTHENTICATION MODELS
+// ============================================================================
+// Manages user profiles, roles, and parent-student relationships
+
+model Profile {
+  userId       String    @id
+  fullName     String?
+  avatarUrl    String?
+  role         Role      @default(STUDENT)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Course Relations
+  coursesCreated    Course[]
+
+  // Lesson Relations
+  lessonsCreated    Lesson[]
+
+  // Assignment Relations
+  assignmentsCreated Assignment[]
+
+  // Submission Relations
+  submissions       Submission[]
+  gradesGiven       Submission[] @relation("gradedBy")
+
+  // Schedule Relations
+  scheduleEntries   ScheduleEntry[]
+
+  // Messaging Relations
+  messagesFrom      Message[] @relation("from")
+  messagesTo        Message[] @relation("to")
+
+  // Parent-Student Relations
+  parentLinks       ParentLink[] @relation("parent")
+  childLinks        ParentLink[] @relation("child")
+
+  // File Relations
+  filesOwned        FileRecord[]
+
+  @@index([role])
+  @@index([createdAt])
+  @@map("profiles")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  PARENT
+  ADMIN
+}
+
+model ParentLink {
+  id          String    @id @default(cuid())
+  parentId    String
+  studentId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  parent      Profile   @relation("parent", fields: [parentId], references: [userId], onDelete: Cascade)
+  student     Profile   @relation("child", fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+  @@index([studentId])
+  @@map("parent_links")
+}
+
+// ============================================================================
+// COURSE & LEARNING MODELS
+// ============================================================================
+// Manages courses, lessons, and student enrollments
+
+model Course {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  teacherId     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  teacher           Profile         @relation(fields: [teacherId], references: [userId], onDelete: Cascade)
+  lessons           Lesson[]
+  assignments       Assignment[]
+  enrollments       Enrollment[]
+  scheduleEntries   ScheduleEntry[]
+
+  @@index([teacherId])
+  @@index([createdAt])
+  @@map("courses")
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  studentId String
+  courseId  String
+  enrolledAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  student   Profile @relation("enrollments", fields: [studentId], references: [userId], onDelete: Cascade)
+  course    Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([courseId])
+  @@index([studentId])
+  @@map("enrollments")
+}
+
+model Lesson {
+  id          String    @id @default(cuid())
+  courseId    String
+  title       String
+  content     String?   // Markdown or HTML content
+  videoUrl    String?   // URL to lesson video
+  orderIndex  Int       @default(0)
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  creator     Profile   @relation(fields: [createdBy], references: [userId], onDelete: Cascade)
+
+  @@unique([courseId, orderIndex])
+  @@index([courseId])
+  @@index([createdBy])
+  @@map("lessons")
+}
+
+// ============================================================================
+// ASSIGNMENT & GRADING MODELS
+// ============================================================================
+// Manages assignments, submissions, and grading
+
+model Assignment {
+  id              String    @id @default(cuid())
+  courseId        String
+  title           String
+  description     String?
+  dueDate         DateTime?
+  maxGrade        Int       @default(100)
+  attachmentUrl   String?
+  createdBy       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  course          Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  creator         Profile     @relation(fields: [createdBy], references: [userId], onDelete: Cascade)
+  submissions     Submission[]
+
+  @@index([courseId])
+  @@index([createdBy])
+  @@index([dueDate])
+  @@map("assignments")
+}
+
+model Submission {
+  id            String    @id @default(cuid())
+  assignmentId  String
+  studentId     String
+  content       String?   // Text submission
+  fileUrl       String?   // File URL
+  grade         Int?      // NULL means not graded
+  feedback      String?
+  status        String    @default("SUBMITTED") // SUBMITTED, GRADED, LATE
+  gradedBy      String?
+  gradedAt      DateTime?
+  submittedAt   DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student       Profile    @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  grader        Profile?   @relation("gradedBy", fields: [gradedBy], references: [userId], onDelete: SetNull)
+
+  @@unique([assignmentId, studentId])
+  @@index([assignmentId])
+  @@index([studentId])
+  @@index([gradedBy])
+  @@map("submissions")
+}
+
+// ============================================================================
+// SCHEDULE & CALENDAR MODELS
+// ============================================================================
+// Manages class schedules, exams, and events
+
+model ScheduleEntry {
+  id            String    @id @default(cuid())
+  title         String
+  type          String    @default("LESSON") // LESSON, EXAM, EVENT
+  courseId      String?
+  dayOfWeek     String?   // MON, TUE, etc
+  startTime     String?   // HH:MM format
+  endTime       String?   // HH:MM format
+  specificDate  DateTime?
+  location      String?
+  notes         String?
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  course        Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  creator       Profile   @relation(fields: [createdBy], references: [userId], onDelete: Cascade)
+
+  @@index([courseId])
+  @@index([createdBy])
+  @@index([specificDate])
+  @@map("schedule_entries")
+}
+
+// ============================================================================
+// MESSAGING MODELS
+// ============================================================================
+// Manages user-to-user messaging
+
+model Message {
+  id          String    @id @default(cuid())
+  fromUserId  String
+  toUserId    String
+  subject     String
+  body        String
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  from        Profile   @relation("from", fields: [fromUserId], references: [userId], onDelete: Cascade)
+  to          Profile   @relation("to", fields: [toUserId], references: [userId], onDelete: Cascade)
+
+  @@index([toUserId])
+  @@index([fromUserId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// ============================================================================
+// FILE STORAGE MODELS
+// ============================================================================
+// Tracks file uploads and storage metadata
+
+model FileRecord {
+  id              String    @id @default(cuid())
+  objectPath      String    @unique // Path in cloud storage (GCS, S3, etc)
+  ownerUserId     String
+  fileName        String
+  mimeType        String
+  size            Int
+  uploadedAt      DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  owner           Profile   @relation(fields: [ownerUserId], references: [userId], onDelete: Cascade)
+
+  @@index([ownerUserId])
+  @@index([uploadedAt])
+  @@map("file_records")
+}
+
+// ============================================================================
+// AUDIT & LOGGING MODELS
+// ============================================================================
+// Tracks all changes for audit and compliance
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  action      String    // "CREATE", "UPDATE", "DELETE", etc
+  entityType  String    // "Course", "Assignment", "Submission", etc
+  entityId    String
+  userId      String
+  changes     Json?     // Store before/after values
+  description String?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([entityType])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
