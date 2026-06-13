@@ -1,4 +1,4 @@
-import { PrismaClient, Message } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { BaseRepository } from '../BaseRepository';
 import { MessageDto } from '@/types';
 

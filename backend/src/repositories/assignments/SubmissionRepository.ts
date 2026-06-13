@@ -1,4 +1,4 @@
-import { PrismaClient, Submission } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { BaseRepository } from '../BaseRepository';
 import { SubmissionDto } from '@/types';
 
@@ -190,12 +190,14 @@ export class SubmissionRepository extends BaseRepository {
       id: submission.id,
       assignmentId: submission.assignmentId,
       studentId: submission.studentId,
-      submissionText: submission.submissionText,
-      attachmentUrl: submission.attachmentUrl || undefined,
-      grade: submission.grade || undefined,
-      feedback: submission.feedback || undefined,
+      content: submission.content,
+      fileUrl: submission.fileUrl,
+      grade: submission.grade,
+      feedback: submission.feedback,
+      status: submission.status || 'SUBMITTED',
+      gradedBy: submission.gradedBy,
+      gradedAt: submission.gradedAt,
       submittedAt: submission.submittedAt,
-      gradedAt: submission.gradedAt || undefined,
       updatedAt: submission.updatedAt,
     };
   }

@@ -1,4 +1,4 @@
-import { PrismaClient, Profile } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { BaseRepository } from '../BaseRepository';
 import { ProfileDto } from '@/types';
 
@@ -162,15 +162,14 @@ export class ProfileRepository extends BaseRepository {
   /**
    * Map database Profile to ProfileDto
    */
-  private mapToDto(profile: Profile): ProfileDto {
+  private mapToDto(profile: any): ProfileDto {
     return {
-      id: profile.id,
       userId: profile.userId,
-      name: profile.name,
-      email: profile.email,
+      name: profile.fullName || '',
+      email: profile.email || '',
       role: profile.role,
       phoneNumber: profile.phoneNumber || undefined,
-      avatar: profile.avatar || undefined,
+      avatar: profile.avatarUrl || undefined,
       createdAt: profile.createdAt,
       updatedAt: profile.updatedAt,
     };

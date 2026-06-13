@@ -1,4 +1,4 @@
-import { PrismaClient, Course } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { BaseRepository } from '../BaseRepository';
 import { CourseDto } from '@/types';
 
@@ -160,10 +160,7 @@ export class CourseRepository extends BaseRepository {
       id: course.id,
       title: course.title,
       description: course.description,
-      instructorId: course.instructorId,
-      code: course.code,
-      credits: course.credits || undefined,
-      enrollmentCount: course.enrollments?.length || 0,
+      teacherId: course.teacherId,
       createdAt: course.createdAt,
       updatedAt: course.updatedAt,
     };

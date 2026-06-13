@@ -1,4 +1,4 @@
-import { PrismaClient, Enrollment } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { BaseRepository } from '../BaseRepository';
 import { EnrollmentDto } from '@/types';
 
@@ -158,7 +158,6 @@ export class EnrollmentRepository extends BaseRepository {
       courseId: enrollment.courseId,
       studentId: enrollment.studentId,
       enrolledAt: enrollment.enrolledAt,
-      updatedAt: enrollment.updatedAt,
     };
   }
 }

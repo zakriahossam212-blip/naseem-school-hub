@@ -1,4 +1,4 @@
-import { PrismaClient, Assignment } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { BaseRepository } from '../BaseRepository';
 import { AssignmentDto } from '@/types';
 
@@ -140,8 +140,9 @@ export class AssignmentRepository extends BaseRepository {
       title: assignment.title,
       description: assignment.description,
       dueDate: assignment.dueDate,
-      points: assignment.points,
-      instructions: assignment.instructions || undefined,
+      maxGrade: assignment.maxGrade,
+      attachmentUrl: assignment.attachmentUrl || undefined,
+      createdBy: assignment.createdBy,
       createdAt: assignment.createdAt,
       updatedAt: assignment.updatedAt,
     };
