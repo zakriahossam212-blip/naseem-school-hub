@@ -1,4 +1,5 @@
 import { ClerkProvider } from "@clerk/react";
+import { shadcn } from '@clerk/ui/themes';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -50,7 +51,7 @@ const Spinner = () => (
 
 export default function App() {
   return (
-    <ClerkProvider publishableKey={CLERK_KEY} afterSignOutUrl="/">
+    <ClerkProvider publishableKey={CLERK_KEY} afterSignOutUrl="/" appearance={{ theme: shadcn }}>
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
           <TooltipProvider>
