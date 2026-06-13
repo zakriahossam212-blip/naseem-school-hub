@@ -1,30 +1,29 @@
 /**
  * Services Layer - Barrel Export
  * 
- * All services are organized by domain/feature:
+ * All services are organized by domain/feature into separate folders:
  * - auth: Authentication & profile management
  * - courses: Course management (courses, enrollments, lessons)
  * - assignments: Assignment management (assignments, submissions, grading)
  * - messaging: User messaging
  * - schedule: Class schedules & events
  * - parent: Parent portal functionality
- * - common: Shared services (profiles, files)
  */
 
 // Auth Services
-export { AuthService, authService } from './AuthService';
+export * from './auth';
 
 // Course Services
-export { CourseService, courseService } from './CourseService';
+export * from './courses';
 
 // Assignment Services
-export { AssignmentService, assignmentService } from './AssignmentService';
+export * from './assignments';
 
-// Future: Organized imports once refactored
-// export * from './auth/index';
-// export * from './courses/index';
-// export * from './assignments/index';
-// export * from './messaging/index';
-// export * from './schedule/index';
-// export * from './parent/index';
-// export * from './common/index';
+// Messaging Services
+export * from './messaging';
+
+// Schedule Services
+export * from './schedule';
+
+// Parent Services
+export * from './parent';
